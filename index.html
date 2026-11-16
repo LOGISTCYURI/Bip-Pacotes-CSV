@@ -22,6 +22,8 @@
 <body>
 <h1>Leitor de QR e Código de Barras</h1>
 
+<input id="facility" type="text" placeholder="Nome da facility" style="width:100%;box-sizing:border-box;padding:14px;font-size:18px;border:1px solid #ccc;border-radius:10px;margin-bottom:8px">
+
 <div id="reader"></div>
 <button id="btnEscanear">📷 Escanear</button>
 <button id="btnParar" class="sec">Parar câmera</button>
@@ -129,14 +131,21 @@
   }
 
   function exportarCSV() {
+    const facility = document.getElementById('facility').value.trim();
+    if (!facility) {
+      mostrarStatus('Digite o nome da facility antes de baixar o CSV.');
+      document.getElementById('facility').focus();
+      return;
+    }
+    localStorage.setItem('facility', facility);
     const linhas = registros.map(r =>
       `"${r.codigo.replace(/"/g, '""')}","${r.hora}"`
     );
-    const csv = 'Codigo,DataHora\n' + linhas.join('\n');
+    const csv = `"Facility","${facility.replace(/"/g, '""')}"\n` + 'Codigo,DataHora\n' + linhas.join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'leituras.csv';
+    a.download = `leituras_${facility.replace(/[^\w-]+/g, '_')}.csv`;
     a.click();
   }
 
@@ -152,6 +161,8 @@
   document.getElementById('btnParar').onclick = pararCamera;
   document.getElementById('btnExportar').onclick = exportarCSV;
   document.getElementById('btnLimpar').onclick = limpar;
+
+  document.getElementById('facility').value = localStorage.getItem('facility') || '';
 
   render();
 </script>
