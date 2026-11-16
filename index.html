@@ -64,7 +64,30 @@
     document.getElementById('status').textContent = msg;
   }
 
+  // Formulário do Google: cada leitura vira uma resposta (linha) na planilha vinculada
+  const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdQiV7JN5ww9gYzZtf-xsmjKtKDbIe9PkbcY5qimXISot8p8g/formResponse';
+  const CAMPOS = {
+    facility: 'entry.2140546137',
+    codigo: 'entry.1054684060',
+    hora: 'entry.1013574660'
+  };
+
+  function enviarParaFormulario(facility, codigo, hora) {
+    const dados = new URLSearchParams();
+    dados.append(CAMPOS.facility, facility);
+    dados.append(CAMPOS.codigo, codigo);
+    dados.append(CAMPOS.hora, hora);
+    // no-cors: o Google não devolve resposta legível para o site, então não dá para confirmar o envio
+    return fetch(FORM_URL, { method: 'POST', mode: 'no-cors', credentials: 'include', body: dados });
+  }
+
   function registrar(textoLido) {
+    const facility = document.getElementById('facility').value.trim();
+    if (!facility) {
+      mostrarStatus('Digite o nome da facility antes de ler.');
+      document.getElementById('facility').focus();
+      return;
+    }
     const codigo = textoLido.replace(/\D/g, ''); // salva só os números
     if (!codigo) {
       mostrarStatus('Lido, mas sem números: ' + textoLido);
@@ -72,11 +95,14 @@
     }
     const ultimo = registros[registros.length - 1];
     if (ultimo && ultimo.codigo === codigo) return; // ignora a mesma leitura seguida
-    registros.push({ codigo, hora: new Date().toLocaleString('pt-BR') });
+    const hora = new Date().toLocaleString('pt-BR');
+    registros.push({ codigo, hora });
     salvar();
     render();
-    mostrarStatus('Lido: ' + codigo);
     if (navigator.vibrate) navigator.vibrate(100);
+    enviarParaFormulario(facility, codigo, hora)
+      .then(() => mostrarStatus('Lido e enviado: ' + codigo))
+      .catch(() => mostrarStatus('Lido, mas não enviou (sem internet?). Ficou salvo no celular: ' + codigo));
   }
 
   async function iniciarCamera() {
@@ -162,7 +188,9 @@
   document.getElementById('btnExportar').onclick = exportarCSV;
   document.getElementById('btnLimpar').onclick = limpar;
 
-  document.getElementById('facility').value = localStorage.getItem('facility') || '';
+  const campoFacility = document.getElementById('facility');
+  campoFacility.value = localStorage.getItem('facility') || '';
+  campoFacility.oninput = () => localStorage.setItem('facility', campoFacility.value.trim());
 
   render();
 </script>
