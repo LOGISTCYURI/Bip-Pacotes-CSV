@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Leitor de QR</title>
+<title>Leitor de QR e Código de Barras</title>
 <style>
   body { font-family: sans-serif; margin: 0 auto; padding: 16px; background: #f5f5f5; max-width: 500px; }
   h1 { font-size: 20px; margin: 4px 0 12px; }
@@ -15,11 +15,17 @@
   .item { padding: 10px 0; border-bottom: 1px solid #eee; }
   .item b { word-break: break-all; }
   .item small { color: #888; display: block; }
-  #parar { display: none; }
+  .opcao { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 8px 0; }
+  .opcao input { width: 22px; height: 22px; }
 </style>
 </head>
 <body>
-<h1>Leitor de QR</h1>
+<h1>Leitor de QR e Código de Barras</h1>
+
+<label class="opcao">
+  <input type="checkbox" id="soNumeros">
+  Salvar só os números (remove letras e símbolos)
+</label>
 
 <div id="reader"></div>
 <button id="btnEscanear">📷 Escanear</button>
@@ -57,17 +63,24 @@
     document.getElementById('contador').textContent = registros.length;
   }
 
-  function registrar(codigo) {
+  function mostrarStatus(msg) {
+    document.getElementById('status').textContent = msg;
+  }
+
+  function registrar(textoLido) {
+    const apenasNumeros = document.getElementById('soNumeros').checked;
+    const codigo = apenasNumeros ? textoLido.replace(/\D/g, '') : textoLido;
+    if (!codigo) {
+      mostrarStatus('Lido, mas sem números: ' + textoLido);
+      return;
+    }
     const ultimo = registros[registros.length - 1];
     if (ultimo && ultimo.codigo === codigo) return; // ignora a mesma leitura seguida
     registros.push({ codigo, hora: new Date().toLocaleString('pt-BR') });
     salvar();
     render();
+    mostrarStatus('Lido: ' + codigo);
     if (navigator.vibrate) navigator.vibrate(100);
-  }
-
-  function mostrarStatus(msg) {
-    document.getElementById('status').textContent = msg;
   }
 
   async function iniciarCamera() {
@@ -77,21 +90,34 @@
       return;
     }
     if (!window.isSecureContext) {
-      mostrarStatus('Erro: a câmera só funciona em página HTTPS (ex.: GitHub Pages ou Netlify), não direto do arquivo.');
+      mostrarStatus('Erro: a câmera só funciona em página HTTPS (ex.: GitHub Pages), não direto do arquivo.');
       return;
     }
     document.getElementById('reader').style.display = 'block';
     document.getElementById('btnParar').style.display = 'block';
     document.getElementById('btnEscanear').style.display = 'none';
     try {
-      scanner = new Html5Qrcode('reader');
+      // Aceita QR Code e códigos de barras comuns
+      const formatos = typeof Html5QrcodeSupportedFormats !== 'undefined' ? [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR
+      ] : undefined;
+      scanner = new Html5Qrcode('reader', { formatsToSupport: formatos, verbose: false });
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: 250 },
-        texto => { registrar(texto); mostrarStatus('Lido: ' + texto); },
+        { fps: 10, qrbox: { width: 300, height: 180 } },
+        texto => registrar(texto),
         () => {}
       );
-      mostrarStatus('Câmera ligada. Aponte para o QR code.');
+      mostrarStatus('Câmera ligada. Aponte para o QR code ou código de barras.');
     } catch (e) {
       mostrarStatus('Erro ao abrir a câmera: ' + (e && e.message ? e.message : e));
       pararCamera();
@@ -127,6 +153,10 @@
       render();
     }
   }
+
+  const checkNumeros = document.getElementById('soNumeros');
+  checkNumeros.checked = localStorage.getItem('soNumeros') === '1';
+  checkNumeros.onchange = () => localStorage.setItem('soNumeros', checkNumeros.checked ? '1' : '0');
 
   document.getElementById('btnEscanear').onclick = iniciarCamera;
   document.getElementById('btnParar').onclick = pararCamera;
