@@ -32,7 +32,6 @@
 <p>Total: <b id="contador">0</b></p>
 <div id="lista"></div>
 
-<button id="btnExportar" class="sec">⬇️ Baixar CSV (abre no Sheets)</button>
 <button id="btnLimpar" class="danger">Apagar tudo</button>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -156,25 +155,6 @@
     document.getElementById('btnEscanear').style.display = 'block';
   }
 
-  function exportarCSV() {
-    const facility = document.getElementById('facility').value.trim();
-    if (!facility) {
-      mostrarStatus('Digite o nome da facility antes de baixar o CSV.');
-      document.getElementById('facility').focus();
-      return;
-    }
-    localStorage.setItem('facility', facility);
-    const linhas = registros.map(r =>
-      `"${r.codigo.replace(/"/g, '""')}","${r.hora}"`
-    );
-    const csv = `"Facility","${facility.replace(/"/g, '""')}"\n` + 'Codigo,DataHora\n' + linhas.join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `leituras_${facility.replace(/[^\w-]+/g, '_')}.csv`;
-    a.click();
-  }
-
   function limpar() {
     if (confirm('Apagar todas as leituras?')) {
       registros = [];
@@ -185,7 +165,6 @@
 
   document.getElementById('btnEscanear').onclick = iniciarCamera;
   document.getElementById('btnParar').onclick = pararCamera;
-  document.getElementById('btnExportar').onclick = exportarCSV;
   document.getElementById('btnLimpar').onclick = limpar;
 
   const campoFacility = document.getElementById('facility');
