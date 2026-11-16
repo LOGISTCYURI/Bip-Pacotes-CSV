@@ -22,11 +22,6 @@
 <body>
 <h1>Leitor de QR e Código de Barras</h1>
 
-<label class="opcao">
-  <input type="checkbox" id="soNumeros">
-  Salvar só os números (remove letras e símbolos)
-</label>
-
 <div id="reader"></div>
 <button id="btnEscanear">📷 Escanear</button>
 <button id="btnParar" class="sec">Parar câmera</button>
@@ -68,8 +63,7 @@
   }
 
   function registrar(textoLido) {
-    const apenasNumeros = document.getElementById('soNumeros').checked;
-    const codigo = apenasNumeros ? textoLido.replace(/\D/g, '') : textoLido;
+    const codigo = textoLido.replace(/\D/g, ''); // salva só os números
     if (!codigo) {
       mostrarStatus('Lido, mas sem números: ' + textoLido);
       return;
@@ -153,10 +147,6 @@
       render();
     }
   }
-
-  const checkNumeros = document.getElementById('soNumeros');
-  checkNumeros.checked = localStorage.getItem('soNumeros') === '1';
-  checkNumeros.onchange = () => localStorage.setItem('soNumeros', checkNumeros.checked ? '1' : '0');
 
   document.getElementById('btnEscanear').onclick = iniciarCamera;
   document.getElementById('btnParar').onclick = pararCamera;
