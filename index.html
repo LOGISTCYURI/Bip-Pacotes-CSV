@@ -15,8 +15,6 @@
   .item { padding: 10px 0; border-bottom: 1px solid #eee; }
   .item b { word-break: break-all; }
   .item small { color: #888; display: block; }
-  .opcao { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 8px 0; }
-  .opcao input { width: 22px; height: 22px; }
 </style>
 </head>
 <body>
@@ -32,6 +30,7 @@
 <p>Total: <b id="contador">0</b></p>
 <div id="lista"></div>
 
+<button id="btnExportar" class="sec">⬇️ Baixar CSV (abre no Sheets)</button>
 <button id="btnLimpar" class="danger">Apagar tudo</button>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -63,23 +62,6 @@
     document.getElementById('status').textContent = msg;
   }
 
-  // Formulário do Google: cada leitura vira uma resposta (linha) na planilha vinculada
-  const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdQiV7JN5ww9gYzZtf-xsmjKtKDbIe9PkbcY5qimXISot8p8g/formResponse';
-  const CAMPOS = {
-    facility: 'entry.2140546137',
-    codigo: 'entry.1054684060',
-    hora: 'entry.1013574660'
-  };
-
-  function enviarParaFormulario(facility, codigo, hora) {
-    const dados = new URLSearchParams();
-    dados.append(CAMPOS.facility, facility);
-    dados.append(CAMPOS.codigo, codigo);
-    dados.append(CAMPOS.hora, hora);
-    // no-cors: o Google não devolve resposta legível para o site, então não dá para confirmar o envio
-    return fetch(FORM_URL, { method: 'POST', mode: 'no-cors', credentials: 'include', body: dados });
-  }
-
   function registrar(textoLido) {
     const facility = document.getElementById('facility').value.trim();
     if (!facility) {
@@ -94,14 +76,11 @@
     }
     const ultimo = registros[registros.length - 1];
     if (ultimo && ultimo.codigo === codigo) return; // ignora a mesma leitura seguida
-    const hora = new Date().toLocaleString('pt-BR');
-    registros.push({ codigo, hora });
+    registros.push({ codigo, hora: new Date().toLocaleString('pt-BR') });
     salvar();
     render();
+    mostrarStatus('Lido: ' + codigo);
     if (navigator.vibrate) navigator.vibrate(100);
-    enviarParaFormulario(facility, codigo, hora)
-      .then(() => mostrarStatus('Lido e enviado: ' + codigo))
-      .catch(() => mostrarStatus('Lido, mas não enviou (sem internet?). Ficou salvo no celular: ' + codigo));
   }
 
   async function iniciarCamera() {
@@ -155,6 +134,25 @@
     document.getElementById('btnEscanear').style.display = 'block';
   }
 
+  function exportarCSV() {
+    const facility = document.getElementById('facility').value.trim();
+    if (!facility) {
+      mostrarStatus('Digite o nome da facility antes de baixar o CSV.');
+      document.getElementById('facility').focus();
+      return;
+    }
+    localStorage.setItem('facility', facility);
+    const linhas = registros.map(r =>
+      `"${r.codigo.replace(/"/g, '""')}","${r.hora}"`
+    );
+    const csv = `"Facility","${facility.replace(/"/g, '""')}"\n` + 'Codigo,DataHora\n' + linhas.join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `leituras_${facility.replace(/[^\w-]+/g, '_')}.csv`;
+    a.click();
+  }
+
   function limpar() {
     if (confirm('Apagar todas as leituras?')) {
       registros = [];
@@ -163,13 +161,14 @@
     }
   }
 
-  document.getElementById('btnEscanear').onclick = iniciarCamera;
-  document.getElementById('btnParar').onclick = pararCamera;
-  document.getElementById('btnLimpar').onclick = limpar;
-
   const campoFacility = document.getElementById('facility');
   campoFacility.value = localStorage.getItem('facility') || '';
   campoFacility.oninput = () => localStorage.setItem('facility', campoFacility.value.trim());
+
+  document.getElementById('btnEscanear').onclick = iniciarCamera;
+  document.getElementById('btnParar').onclick = pararCamera;
+  document.getElementById('btnExportar').onclick = exportarCSV;
+  document.getElementById('btnLimpar').onclick = limpar;
 
   render();
 </script>
